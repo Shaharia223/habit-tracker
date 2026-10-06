@@ -1,0 +1,505 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Habit Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Inter+Tight:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#EAF0F3; --surface:#FFFFFF; --ink:#14202B; --muted:#5B6A77; --line:#D3DCE3;
+  --accent:#0F6B3A; --accent-ink:#FFFFFF; --today:#E3F1E8; --cell0:#E1E8ED; --danger:#B3261E;
+  --display:'Bricolage Grotesque','Segoe UI',system-ui,sans-serif;
+  --body:'Inter Tight','Segoe UI',system-ui,sans-serif;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#0F161C; --surface:#17212A; --ink:#E8EEF2; --muted:#93A1AD; --line:#2A3743;
+    --accent:#4CC28A; --accent-ink:#06210F; --today:#1B2D27; --cell0:#243240; --danger:#F2B8B5;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0F161C; --surface:#17212A; --ink:#E8EEF2; --muted:#93A1AD; --line:#2A3743;
+  --accent:#4CC28A; --accent-ink:#06210F; --today:#1B2D27; --cell0:#243240; --danger:#F2B8B5;
+}
+html{scroll-padding-top:env(safe-area-inset-top,0px);height:100%}
+*{box-sizing:border-box}
+body{margin:0;min-height:100%;background:var(--bg);color:var(--ink);font:400 15px/1.45 var(--body)}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.wrap{max-width:1120px;margin:0 auto;padding:20px 16px 48px}
+h1,h2{font-family:var(--display);margin:0;letter-spacing:-.01em}
+h1{font-size:clamp(28px,5vw,40px);line-height:1.05}
+h2{font-size:19px}
+.top{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;margin-bottom:16px}
+.nav{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:8px 14px;font-weight:500}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn.danger{color:var(--danger)}
+.btn.icon{padding:8px 12px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--surface)}
+.seg button{border:0;background:none;padding:8px 14px;font-weight:500}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+.period{font-family:var(--display);font-weight:700;font-size:20px;min-width:9ch}
+
+.hero{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.5fr);gap:16px;margin-bottom:16px}
+@media (max-width:760px){.hero{grid-template-columns:1fr}}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:18px}
+.today{display:flex;gap:16px;align-items:center}
+.ring{flex:none;position:relative;width:84px;height:84px}
+.ring svg{width:84px;height:84px;transform:rotate(-90deg)}
+.ring .num{position:absolute;inset:0;display:grid;place-items:center;font:700 20px var(--display)}
+.ring-bg{stroke:var(--cell0)}
+.ring-fg{stroke:var(--accent);transition:stroke-dasharray .35s ease}
+.today p{margin:2px 0 0;color:var(--muted)}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.chip{display:inline-flex;align-items:center;gap:8px;border:1.5px solid var(--line);background:var(--surface);border-radius:999px;padding:8px 14px 8px 10px;font-weight:500}
+.chip i{width:16px;height:16px;border-radius:50%;border:1.5px solid var(--c);display:grid;place-items:center}
+.chip[aria-pressed="true"]{background:var(--c);border-color:var(--c);color:#fff}
+.chip[aria-pressed="true"] i{background:#fff;border-color:#fff}
+.chip[aria-pressed="true"] i svg{display:block}
+.chip i svg{display:none;width:11px;height:11px;stroke:var(--c);fill:none;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round}
+.facts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+@media (max-width:520px){.facts{grid-template-columns:1fr 1fr}}
+.fact b{display:block;font:700 26px/1.1 var(--display)}
+.fact span{color:var(--muted);font-size:13px}
+
+.gridcard{padding:0;overflow:hidden;margin-bottom:16px}
+.gridhead{display:flex;justify-content:space-between;align-items:center;padding:14px 18px;border-bottom:1px solid var(--line);gap:8px;flex-wrap:wrap}
+.scroll{overflow-x:auto;max-width:100%}
+table{border-collapse:separate;border-spacing:0;width:100%}
+th,td{padding:6px 3px;text-align:center;white-space:nowrap}
+thead th{font-weight:500;color:var(--muted);font-size:12px;border-bottom:1px solid var(--line);padding-top:10px;padding-bottom:8px}
+thead th .dn{display:block;font:700 14px var(--display);color:var(--ink)}
+.namecol{position:sticky;left:0;z-index:2;background:var(--surface);text-align:left!important;padding-left:18px!important;padding-right:12px!important;min-width:170px;max-width:220px;border-right:1px solid var(--line)}
+.hname{display:flex;align-items:center;gap:10px;border:0;background:none;padding:6px 0;text-align:left;font-weight:600;width:100%}
+.hname .dot{flex:none;width:10px;height:10px;border-radius:50%;background:var(--c)}
+.hname span:last-child{overflow:hidden;text-overflow:ellipsis}
+.hname small{display:block;color:var(--muted);font-weight:400;font-size:12px}
+.cell{width:var(--cs,28px);height:var(--cs,28px);border-radius:50%;border:1.5px solid var(--line);background:none;padding:0;display:inline-grid;place-items:center;transition:background .12s,border-color .12s,transform .12s}
+.cell:hover:not(:disabled){border-color:var(--c)}
+.cell:active:not(:disabled){transform:scale(.9)}
+.cell[aria-pressed="true"]{background:var(--c);border-color:var(--c)}
+.cell svg{width:60%;height:60%;stroke:#fff;fill:none;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round;opacity:0}
+.cell[aria-pressed="true"] svg{opacity:1}
+.cell:disabled{cursor:default;border-style:dashed;opacity:.45}
+td.is-today,th.is-today{background:var(--today)}
+td.is-today.namecol{background:var(--surface)}
+.statcol{padding:6px 14px!important;text-align:right!important;font-variant-numeric:tabular-nums;min-width:70px}
+.statcol small{display:block;color:var(--muted);font-size:12px}
+tbody tr:not(:last-child) td{border-bottom:1px solid var(--line)}
+.week{--cs:38px}
+.empty{padding:36px 18px;text-align:center;color:var(--muted)}
+.empty .btn{margin-top:12px}
+
+.lower{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:16px}
+@media (max-width:760px){.lower{grid-template-columns:1fr}}
+.heat{display:grid;grid-auto-flow:column;grid-template-rows:repeat(7,1fr);gap:3px;margin-top:12px;overflow-x:auto;padding-bottom:4px}
+.heat i{width:14px;height:14px;border-radius:3px;background:var(--cell0)}
+.heat i.future{background:transparent}
+.legend{display:flex;align-items:center;gap:6px;color:var(--muted);font-size:12px;margin-top:8px}
+.legend i{width:12px;height:12px;border-radius:3px;display:inline-block}
+textarea{width:100%;min-height:150px;margin-top:12px;border:1px solid var(--line);border-radius:10px;background:var(--bg);padding:12px;resize:vertical;line-height:1.5}
+.foot{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:16px;color:var(--muted);font-size:13px}
+.foot select{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:6px 8px}
+.sp{flex:1}
+#toast{min-height:20px;color:var(--muted);font-size:13px}
+
+.drive{margin-top:16px}
+.drive p{margin:10px 0 0}
+.drow{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.drow .field{flex:1;min-width:220px}
+.dstatus{font-weight:500}
+.dnote{color:var(--muted);font-size:13px}
+dialog{border:1px solid var(--line);border-radius:16px;background:var(--surface);color:var(--ink);padding:22px;width:min(420px,92vw)}
+dialog::backdrop{background:rgba(10,18,24,.55)}
+label{display:block;font-weight:600;margin:14px 0 6px}
+.field{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:var(--bg)}
+.swatches{display:flex;gap:10px;flex-wrap:wrap}
+.sw{width:32px;height:32px;border-radius:50%;border:3px solid var(--surface);background:var(--c);box-shadow:0 0 0 1.5px var(--line)}
+.sw[aria-checked="true"]{box-shadow:0 0 0 2.5px var(--ink)}
+.dlgfoot{display:flex;gap:8px;margin-top:22px;align-items:center}
+@media print{
+  .nav,.btn,.foot,.chips,.seg,#toast{display:none!important}
+  body{background:#fff}
+  .card{break-inside:avoid}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap" id="app"></div>
+
+<dialog id="dlg" aria-labelledby="dlgTitle">
+  <form id="hform">
+    <h2 id="dlgTitle">Add habit</h2>
+    <label for="hname">Habit name</label>
+    <input class="field" id="hname" maxlength="60" required placeholder="e.g. Read 30 minutes">
+    <label for="htarget">Weekly goal</label>
+    <select class="field" id="htarget">
+      <option value="1">1 day a week</option><option value="2">2 days a week</option>
+      <option value="3">3 days a week</option><option value="4">4 days a week</option>
+      <option value="5">5 days a week</option><option value="6">6 days a week</option>
+      <option value="7">Every day</option>
+    </select>
+    <label id="hcolorlbl">Color</label>
+    <div class="swatches" id="swatches" role="radiogroup" aria-labelledby="hcolorlbl"></div>
+    <div class="dlgfoot">
+      <button type="button" class="btn danger" id="hdel">Delete habit</button>
+      <span class="sp"></span>
+      <button type="button" class="btn" id="hcancel">Cancel</button>
+      <button type="submit" class="btn primary">Save habit</button>
+    </div>
+  </form>
+</dialog>
+<input type="file" id="importFile" accept="application/json" hidden>
+
+<script>
+(function(){
+const KEY='habit-tracker-v1';
+const COLORS=['#0F6B3A','#2F6FDE','#D6481F','#8A4FD3','#B07A00','#0E8E9C','#C2325F','#5B6A77'];
+const CHECK='<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 8.5l3 3 6-7"/></svg>';
+const pad=n=>String(n).padStart(2,'0');
+const iso=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+const addDays=(d,n)=>{const x=new Date(d.getFullYear(),d.getMonth(),d.getDate());x.setDate(x.getDate()+n);return x;};
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const uid=()=>'h'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+
+function seed(){
+  const hs=[['Drink 8 glasses of water',7],['Walk 20 minutes',5],['Read 30 minutes',5],['Sleep before 11 pm',6]]
+    .map((x,i)=>({id:uid(),name:x[0],target:x[1],color:COLORS[i]}));
+  return {habits:hs,done:{},notes:{},weekStart:6,theme:'auto'};
+}
+function load(){
+  try{const s=localStorage.getItem(KEY);if(s){const o=JSON.parse(s);if(o&&o.habits)return Object.assign({done:{},notes:{},weekStart:6,theme:'auto'},o);}}catch(e){}
+  return seed();
+}
+function persist(){try{localStorage.setItem(KEY,JSON.stringify(state));}catch(e){}}
+function save(){state.updatedAt=Date.now();persist();schedulePush();}
+
+let state=load();
+let ui={view:'month',anchor:new Date()};
+let editing=null,pickedColor=COLORS[0];
+
+function periodDays(){
+  const a=ui.anchor;
+  if(ui.view==='month'){
+    const n=new Date(a.getFullYear(),a.getMonth()+1,0).getDate();
+    return Array.from({length:n},(_,i)=>new Date(a.getFullYear(),a.getMonth(),i+1));
+  }
+  const off=(a.getDay()-state.weekStart+7)%7;
+  const s=addDays(a,-off);
+  return Array.from({length:7},(_,i)=>addDays(s,i));
+}
+function isDone(id,k){return !!(state.done[id]&&state.done[id][k]);}
+function streak(id){
+  const m=state.done[id]||{};let d=new Date();
+  if(!m[iso(d)])d=addDays(d,-1);
+  let n=0;while(m[iso(d)]){n++;d=addDays(d,-1);}
+  return n;
+}
+function bestStreak(id){
+  const keys=Object.keys(state.done[id]||{}).filter(k=>state.done[id][k]).sort();
+  let best=0,run=0,prev=null;
+  keys.forEach(k=>{
+    const [y,m,d]=k.split('-').map(Number);const dt=new Date(y,m-1,d);
+    run=(prev&&iso(addDays(prev,1))===k)?run+1:1;prev=dt;if(run>best)best=run;
+  });
+  return best;
+}
+function periodKey(days){return ui.view==='month'?'m:'+iso(days[0]).slice(0,7):'w:'+iso(days[0]);}
+function periodLabel(days){
+  if(ui.view==='month')return days[0].toLocaleDateString('en',{month:'long',year:'numeric'});
+  const f=d=>d.toLocaleDateString('en',{month:'short',day:'numeric'});
+  return f(days[0])+' – '+f(days[6]);
+}
+function pct(a,b){return b?Math.round(a/b*100):0;}
+
+function applyTheme(){
+  const r=document.documentElement;
+  if(state.theme==='auto')r.removeAttribute('data-theme');else r.setAttribute('data-theme',state.theme);
+}
+
+function render(){
+  applyTheme();
+  const days=periodDays(),t=iso(new Date()),hs=state.habits;
+  const elapsed=days.filter(d=>iso(d)<=t);
+  // today summary
+  const doneToday=hs.filter(h=>isDone(h.id,t)).length;
+  const C=2*Math.PI*34,frac=hs.length?doneToday/hs.length:0;
+  // period stats
+  let periodDone=0;hs.forEach(h=>elapsed.forEach(d=>{if(isDone(h.id,iso(d)))periodDone++;}));
+  const periodPct=pct(periodDone,hs.length*elapsed.length);
+  let topS=0,topName='';hs.forEach(h=>{const s=streak(h.id);if(s>topS){topS=s;topName=h.name;}});
+
+  const head='<tr><th class="namecol" scope="col"><span style="font-weight:600;color:var(--ink);font-size:13px">Habit</span></th>'+
+    days.map(d=>{const k=iso(d);return '<th scope="col" class="'+(k===t?'is-today':'')+'">'+
+      d.toLocaleDateString('en',{weekday:ui.view==='week'?'short':'narrow'})+'<span class="dn">'+d.getDate()+'</span></th>';}).join('')+
+    '<th class="statcol" scope="col">'+(ui.view==='week'?'Goal':'Done')+'</th><th class="statcol" scope="col">Streak</th></tr>';
+
+  const rows=hs.map(h=>{
+    const cnt=days.filter(d=>isDone(h.id,iso(d))).length;
+    const stat=ui.view==='week'?(cnt+'/'+h.target):pct(cnt,elapsed.length)+'%';
+    const hit=ui.view==='week'&&cnt>=h.target;
+    return '<tr style="--c:'+h.color+'"><td class="namecol"><button class="hname" data-a="edit" data-id="'+h.id+'" aria-label="Edit '+esc(h.name)+'"><span class="dot"></span><span>'+esc(h.name)+'<small>'+(h.target===7?'Every day':h.target+' days a week')+'</small></span></button></td>'+
+      days.map(d=>{const k=iso(d),on=isDone(h.id,k),fut=k>t;
+        return '<td class="'+(k===t?'is-today':'')+'"><button class="cell" data-a="toggle" data-id="'+h.id+'" data-d="'+k+'" aria-pressed="'+on+'" aria-label="'+esc(h.name)+', '+d.toLocaleDateString('en',{month:'short',day:'numeric'})+'"'+(fut?' disabled':'')+'>'+CHECK+'</button></td>';}).join('')+
+      '<td class="statcol"><b>'+stat+'</b>'+(hit?'<small>goal met</small>':'')+'</td>'+
+      '<td class="statcol"><b>'+streak(h.id)+'</b><small>best '+bestStreak(h.id)+'</small></td></tr>';
+  }).join('');
+
+  // heatmap: last 17 weeks
+  const ws=state.weekStart,tod=new Date();
+  const startOfWeek=addDays(tod,-((tod.getDay()-ws+7)%7));
+  const hstart=addDays(startOfWeek,-16*7);
+  let heat='';
+  for(let i=0;i<17*7;i++){
+    const d=addDays(hstart,i),k=iso(d);
+    if(k>t){heat+='<i class="future"></i>';continue;}
+    const n=hs.filter(h=>isDone(h.id,k)).length,p=hs.length?Math.round(n/hs.length*100):0;
+    heat+='<i title="'+d.toLocaleDateString('en',{month:'short',day:'numeric'})+': '+n+' of '+hs.length+'" style="background:'+(p?'color-mix(in srgb,var(--accent) '+(25+p*.75)+'%,var(--cell0))':'var(--cell0)')+'"></i>';
+  }
+
+  const notesKey=periodKey(days);
+  document.getElementById('app').innerHTML=
+  '<div class="top"><h1>Habit Tracker</h1><div class="nav">'+
+    '<div class="seg" role="group" aria-label="View"><button data-a="view" data-v="week" aria-pressed="'+(ui.view==='week')+'">Week</button><button data-a="view" data-v="month" aria-pressed="'+(ui.view==='month')+'">Month</button></div>'+
+    '<button class="btn icon" data-a="prev" aria-label="Previous '+ui.view+'">&lsaquo;</button>'+
+    '<span class="period" aria-live="polite">'+periodLabel(days)+'</span>'+
+    '<button class="btn icon" data-a="next" aria-label="Next '+ui.view+'">&rsaquo;</button>'+
+    '<button class="btn" data-a="now">Today</button></div></div>'+
+
+  '<section class="hero"><div class="card"><div class="today"><div class="ring"><svg viewBox="0 0 84 84"><circle class="ring-bg" cx="42" cy="42" r="34" fill="none" stroke-width="9"/><circle class="ring-fg" cx="42" cy="42" r="34" fill="none" stroke-width="9" stroke-linecap="round" stroke-dasharray="'+(C*frac)+' '+C+'"/></svg><div class="num">'+doneToday+'/'+hs.length+'</div></div>'+
+    '<div><h2>Today</h2><p>'+(hs.length?(doneToday===hs.length?'All done. Nice work.':(hs.length-doneToday)+' left today'):'No habits yet')+'</p></div></div>'+
+    '<div class="chips">'+hs.map(h=>'<button class="chip" style="--c:'+h.color+'" data-a="toggle" data-id="'+h.id+'" data-d="'+t+'" aria-pressed="'+isDone(h.id,t)+'"><i>'+CHECK+'</i>'+esc(h.name)+'</button>').join('')+'</div></div>'+
+    '<div class="card"><h2>This '+ui.view+'</h2><div class="facts" style="margin-top:14px">'+
+      '<div class="fact"><b>'+periodPct+'%</b><span>of check-ins completed</span></div>'+
+      '<div class="fact"><b>'+periodDone+'</b><span>habits checked off</span></div>'+
+      '<div class="fact"><b>'+topS+(topS===1?' day':' days')+'</b><span>'+(topS?'longest streak: '+esc(topName):'no streak yet')+'</span></div>'+
+    '</div></div></section>'+
+
+  '<section class="card gridcard"><div class="gridhead"><h2>'+(ui.view==='month'?'Monthly':'Weekly')+' tracker</h2><button class="btn primary" data-a="add">Add habit</button></div>'+
+    (hs.length?'<div class="scroll"><table class="'+(ui.view==='week'?'week':'')+'"><thead>'+head+'</thead><tbody>'+rows+'</tbody></table></div>':
+      '<div class="empty">Add your first habit to start checking off days.<br><button class="btn primary" data-a="add">Add habit</button></div>')+
+  '</section>'+
+
+  '<section class="lower"><div class="card"><h2>Last 17 weeks</h2><div class="heat" aria-label="Daily completion heatmap">'+heat+'</div>'+
+    '<div class="legend">Less <i style="background:var(--cell0)"></i><i style="background:color-mix(in srgb,var(--accent) 45%,var(--cell0))"></i><i style="background:color-mix(in srgb,var(--accent) 70%,var(--cell0))"></i><i style="background:var(--accent)"></i> More</div></div>'+
+    '<div class="card"><h2>Notes for this '+ui.view+'</h2><textarea id="notes" data-key="'+notesKey+'" placeholder="What went well? What got in the way? Plans for next '+ui.view+'.">'+esc(state.notes[notesKey]||'')+'</textarea></div></section>'+
+
+  driveCard()+
+
+  '<div class="foot"><label for="ws" style="margin:0;font-weight:500">Week starts on</label><select id="ws">'+
+    [[6,'Saturday'],[0,'Sunday'],[1,'Monday']].map(o=>'<option value="'+o[0]+'"'+(state.weekStart===o[0]?' selected':'')+'>'+o[1]+'</option>').join('')+'</select>'+
+    '<button class="btn" data-a="theme">Theme: '+state.theme+'</button><span class="sp"></span><span id="toast" role="status"></span>'+
+    '<button class="btn" data-a="export">Export data</button><button class="btn" data-a="import">Import data</button><button class="btn" data-a="print">Print</button></div>';
+}
+
+function toast(m){const e=document.getElementById('toast');if(e){e.textContent=m;setTimeout(()=>{if(e.textContent===m)e.textContent='';},3500);}}
+
+// ---------- Google Drive sync ----------
+// Optional: paste your client ID here to skip the in-app box. Client IDs are not secret.
+const GOOGLE_CLIENT_ID='';
+const SCOPE='https://www.googleapis.com/auth/drive.appdata';
+const FILE_NAME='habit-tracker.json';
+const DK='habit-tracker-drive';
+let drive=(()=>{try{return JSON.parse(localStorage.getItem(DK))||{};}catch(e){return {};}})();
+function saveDrive(){try{localStorage.setItem(DK,JSON.stringify(drive));}catch(e){}}
+const clientId=()=>GOOGLE_CLIENT_ID||drive.clientId||'';
+let token=null,tokenExp=0,pushTimer=null,driveMsg='';
+function setStatus(m){driveMsg=m;const e=document.getElementById('dstatus');if(e)e.textContent=m;}
+const clock=()=>new Date().toLocaleTimeString('en',{hour:'numeric',minute:'2-digit'});
+
+function loadGsi(){
+  return new Promise((res,rej)=>{
+    if(window.google&&google.accounts&&google.accounts.oauth2)return res();
+    const s=document.createElement('script');s.src='https://accounts.google.com/gsi/client';s.async=true;
+    s.onload=()=>res();s.onerror=()=>rej(new Error('Could not load Google sign-in. Check your connection.'));
+    document.head.appendChild(s);
+  });
+}
+function getToken(){
+  if(token&&Date.now()<tokenExp-60000)return Promise.resolve(token);
+  return loadGsi().then(()=>new Promise((res,rej)=>{
+    const tc=google.accounts.oauth2.initTokenClient({
+      client_id:clientId(),scope:SCOPE,
+      callback:r=>{
+        if(r.error)return rej(new Error(r.error_description||r.error));
+        token=r.access_token;tokenExp=Date.now()+(r.expires_in||3600)*1000;res(token);
+      },
+      error_callback:e=>rej(new Error(e&&e.type==='popup_closed'?'Sign-in window was closed.':'Sign-in failed or was blocked.'))
+    });
+    tc.requestAccessToken({prompt:drive.connected?'':'consent'});
+  }));
+}
+async function gfetch(url,opts){
+  const t=await getToken();
+  const r=await fetch(url,Object.assign({},opts,{headers:Object.assign({Authorization:'Bearer '+t},(opts&&opts.headers)||{})}));
+  if(r.status===401){token=null;const e=new Error('Session expired. Press Sync now.');e.status=401;throw e;}
+  if(!r.ok){const e=new Error('Drive error '+r.status);e.status=r.status;throw e;}
+  return r;
+}
+async function findFile(){
+  if(drive.fileId)return drive.fileId;
+  const q=encodeURIComponent("name='"+FILE_NAME+"'");
+  const r=await gfetch('https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q='+q+'&fields=files(id)');
+  const j=await r.json();
+  if(j.files&&j.files[0]){drive.fileId=j.files[0].id;saveDrive();return drive.fileId;}
+  return null;
+}
+async function pull(){
+  const id=await findFile();if(!id)return null;
+  try{const r=await gfetch('https://www.googleapis.com/drive/v3/files/'+id+'?alt=media');return await r.json();}
+  catch(e){if(e.status===404){drive.fileId=null;saveDrive();return null;}throw e;}
+}
+async function push(){
+  const id=await findFile(),body=JSON.stringify(state);
+  if(id){
+    await gfetch('https://www.googleapis.com/upload/drive/v3/files/'+id+'?uploadType=media',{method:'PATCH',headers:{'Content-Type':'application/json'},body});
+  }else{
+    const b='ht'+Date.now();
+    const mp='--'+b+'\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n'+JSON.stringify({name:FILE_NAME,parents:['appDataFolder']})+
+      '\r\n--'+b+'\r\nContent-Type: application/json\r\n\r\n'+body+'\r\n--'+b+'--';
+    const r=await gfetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id',{method:'POST',headers:{'Content-Type':'multipart/related; boundary='+b},body:mp});
+    const j=await r.json();drive.fileId=j.id;saveDrive();
+  }
+}
+async function syncNow(){
+  if(!clientId()){setStatus('Add your Google client ID first.');return;}
+  setStatus('Syncing…');
+  try{
+    const remote=await pull();
+    const lu=state.updatedAt||0,ru=(remote&&remote.updatedAt)||0;
+    drive.connected=true;saveDrive();
+    if(remote&&Array.isArray(remote.habits)&&ru>lu){
+      state=Object.assign({done:{},notes:{},weekStart:6,theme:'auto'},remote);persist();render();
+      setStatus('Loaded the latest data from Drive at '+clock()+'.');
+    }else{
+      await push();render();setStatus('Saved to Drive at '+clock()+'.');
+    }
+  }catch(e){setStatus(e.message||'Sync failed.');}
+}
+function schedulePush(){
+  if(!drive.connected)return;
+  clearTimeout(pushTimer);
+  pushTimer=setTimeout(async()=>{
+    if(!token||Date.now()>=tokenExp-30000){setStatus('Saved here only. Press Sync now to sign in again and upload.');return;}
+    try{await push();setStatus('Saved to Drive at '+clock()+'.');}catch(e){setStatus(e.message||'Could not save to Drive.');}
+  },2000);
+}
+function disconnect(){
+  try{if(token&&window.google)google.accounts.oauth2.revoke(token,()=>{});}catch(e){}
+  token=null;tokenExp=0;drive.connected=false;drive.fileId=null;saveDrive();
+  render();setStatus('Disconnected. Your data in Drive was not deleted.');
+}
+function driveCard(){
+  let body;
+  if(!clientId()){
+    body='<p>To sync across devices, paste your Google client ID from the setup guide.</p><div class="drow"><input class="field" id="cid" placeholder="123456789-abc.apps.googleusercontent.com" aria-label="Google client ID"><button class="btn primary" data-a="dsaveid">Save client ID</button></div>';
+  }else{
+    body='<div class="drow">'+(drive.connected?'<button class="btn primary" data-a="dsync">Sync now</button><button class="btn" data-a="ddisc">Disconnect</button>':'<button class="btn primary" data-a="dsync">Connect Google Drive</button>')+
+      (!GOOGLE_CLIENT_ID?'<button class="btn" data-a="dclear">Change client ID</button>':'')+'</div>';
+  }
+  const msg=driveMsg||(drive.connected?'Connected. Changes upload automatically while you are signed in.':'Not connected. Your data is saved in this browser only.');
+  return '<section class="card drive"><h2>Google Drive sync</h2>'+body+'<p class="dstatus" id="dstatus" role="status">'+esc(msg)+'</p><p class="dnote">Data goes to a private app folder in your own Drive. Only this app can see it.</p></section>';
+}
+
+// dialog
+const dlg=document.getElementById('dlg'),hname=document.getElementById('hname'),htarget=document.getElementById('htarget'),hdel=document.getElementById('hdel');
+function renderSwatches(){
+  document.getElementById('swatches').innerHTML=COLORS.map(c=>'<button type="button" class="sw" role="radio" aria-checked="'+(c===pickedColor)+'" aria-label="'+c+'" data-color="'+c+'" style="--c:'+c+'"></button>').join('');
+}
+function openDlg(id){
+  editing=id;const h=state.habits.find(x=>x.id===id);
+  document.getElementById('dlgTitle').textContent=h?'Edit habit':'Add habit';
+  hname.value=h?h.name:'';htarget.value=h?h.target:7;
+  pickedColor=h?h.color:COLORS[state.habits.length%COLORS.length];
+  hdel.hidden=!h;renderSwatches();dlg.showModal();hname.focus();
+}
+document.getElementById('swatches').addEventListener('click',e=>{const b=e.target.closest('[data-color]');if(b){pickedColor=b.dataset.color;renderSwatches();}});
+document.getElementById('hcancel').onclick=()=>dlg.close();
+document.getElementById('hform').addEventListener('submit',e=>{
+  e.preventDefault();const name=hname.value.trim();if(!name)return;
+  const target=parseInt(htarget.value,10);
+  if(editing){const h=state.habits.find(x=>x.id===editing);if(h){h.name=name;h.target=target;h.color=pickedColor;}}
+  else state.habits.push({id:uid(),name,target,color:pickedColor});
+  save();dlg.close();render();
+});
+hdel.onclick=()=>{
+  const h=state.habits.find(x=>x.id===editing);if(!h)return;
+  if(!confirm('Delete "'+h.name+'" and all its check-ins?'))return;
+  state.habits=state.habits.filter(x=>x.id!==editing);delete state.done[editing];save();dlg.close();render();
+};
+
+// actions
+document.addEventListener('click',e=>{
+  const b=e.target.closest('[data-a]');if(!b)return;
+  const a=b.dataset.a;
+  if(a==='toggle'){
+    const id=b.dataset.id,k=b.dataset.d;
+    state.done[id]=state.done[id]||{};
+    if(state.done[id][k])delete state.done[id][k];else state.done[id][k]=1;
+    save();render();
+  }else if(a==='view'){ui.view=b.dataset.v;render();}
+  else if(a==='prev'||a==='next'){
+    const s=a==='prev'?-1:1;
+    if(ui.view==='month')ui.anchor=new Date(ui.anchor.getFullYear(),ui.anchor.getMonth()+s,1);
+    else ui.anchor=addDays(ui.anchor,7*s);
+    render();
+  }else if(a==='now'){ui.anchor=new Date();render();}
+  else if(a==='add')openDlg(null);
+  else if(a==='edit')openDlg(b.dataset.id);
+  else if(a==='theme'){state.theme=({auto:'light',light:'dark',dark:'auto'})[state.theme];save();render();}
+  else if(a==='dsync')syncNow();
+  else if(a==='ddisc')disconnect();
+  else if(a==='dclear'){drive.clientId='';drive.connected=false;drive.fileId=null;saveDrive();driveMsg='';render();}
+  else if(a==='dsaveid'){
+    const v=(document.getElementById('cid').value||'').trim();
+    if(!/\.apps\.googleusercontent\.com$/.test(v)){setStatus('That does not look like a client ID. It should end in .apps.googleusercontent.com');return;}
+    drive.clientId=v;saveDrive();driveMsg='';render();
+  }
+  else if(a==='print')window.print();
+  else if(a==='export'){
+    try{
+      const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'});
+      const u=URL.createObjectURL(blob),l=document.createElement('a');
+      l.href=u;l.download='habit-tracker-backup.json';document.body.appendChild(l);l.click();l.remove();URL.revokeObjectURL(u);
+      toast('Backup downloaded');
+    }catch(err){
+      const txt=JSON.stringify(state);
+      (navigator.clipboard?navigator.clipboard.writeText(txt):Promise.reject()).then(()=>toast('Download unavailable here. Backup copied to clipboard.')).catch(()=>toast('Could not export in this view.'));
+    }
+  }
+  else if(a==='import')document.getElementById('importFile').click();
+});
+document.addEventListener('change',e=>{
+  if(e.target.id==='ws'){state.weekStart=parseInt(e.target.value,10);save();render();}
+});
+document.addEventListener('input',e=>{
+  if(e.target.id==='notes'){state.notes[e.target.dataset.key]=e.target.value;save();}
+});
+document.getElementById('importFile').addEventListener('change',e=>{
+  const f=e.target.files[0];if(!f)return;
+  const r=new FileReader();
+  r.onload=()=>{
+    try{
+      const o=JSON.parse(r.result);
+      if(!o||!Array.isArray(o.habits))throw new Error('bad');
+      if(!confirm('Replace your current data with this backup?'))return;
+      state=Object.assign({done:{},notes:{},weekStart:6,theme:'auto'},o);save();render();toast('Backup restored');
+    }catch(err){toast('That file is not a valid backup.');}
+  };
+  r.readAsText(f);e.target.value='';
+});
+render();
+})();
+</script>
+</body>
+</html>
