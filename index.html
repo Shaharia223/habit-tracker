@@ -65,6 +65,10 @@ h2{font-size:19px}
 .timer-actions{display:flex;gap:8px;flex-wrap:wrap}
 .timer-actions .btn{flex:1;min-width:92px}
 .timer-total{font:700 28px/1.1 var(--display);font-variant-numeric:tabular-nums}
+.manual-time{display:flex;gap:8px;align-items:end;flex-wrap:wrap}
+.manual-time label{margin:0;font-size:12px;color:var(--muted)}
+.manual-time .field{width:76px;padding:8px}
+.manual-time .btn{height:40px}
 .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
 .chip{display:inline-flex;align-items:center;gap:8px;border:1.5px solid var(--line);background:var(--surface);border-radius:999px;padding:8px 14px 8px 10px;font-weight:500}
 .chip i{width:16px;height:16px;border-radius:50%;border:1.5px solid var(--c);display:grid;place-items:center}
@@ -206,6 +210,19 @@ function refreshTodayTotal(){todayTotalSeconds=dailyRecord().deepWorkSeconds;}
 function sessionSeconds(){return timerStartedAt?activeSeconds+Math.floor((Date.now()-timerStartedAt)/1000):activeSeconds;}
 function formatTime(seconds){seconds=Math.max(0,Math.floor(seconds));return pad(Math.floor(seconds/3600))+':'+pad(Math.floor(seconds%3600/60))+':'+pad(seconds%60);}
 function formatHours(seconds){return (Math.max(0,seconds)/3600).toFixed(2);}
+function addManualTime(){
+  const hours=Number(document.getElementById('manualHours').value)||0;
+  const minutes=Number(document.getElementById('manualMinutes').value)||0;
+  const seconds=Number(document.getElementById('manualSeconds').value)||0;
+  if(hours<0||minutes<0||minutes>59||seconds<0||seconds>59){toast('Use 0–59 for minutes and seconds');return;}
+  const amount=Math.floor(hours*3600+minutes*60+seconds);
+  if(!amount){toast('Enter a time greater than zero');return;}
+  if(timerStartedAt)pauseTimer();
+  const record=dailyRecord();record.deepWorkSeconds+=amount;todayTotalSeconds=record.deepWorkSeconds;
+  save();
+  ['manualHours','manualMinutes','manualSeconds'].forEach(id=>{document.getElementById(id).value='';});
+  renderTimer();toast('Manual deep work time added');
+}
 function renderTimer(){
   const e=document.getElementById('timer'),total=document.getElementById('deepTotal'),start=document.querySelector('[data-a="timer-start"]'),pause=document.querySelector('[data-a="timer-pause"]');
   if(e)e.textContent=formatTime(sessionSeconds());
@@ -330,6 +347,7 @@ function render(){
   '<section class="card deepwork"><div class="timer-meta"><h2>Deep Work Timer</h2><span>Today: <b class="timer-total" id="deepTotal">'+formatHours(todayTotalSeconds+sessionSeconds())+'</b> hrs</span></div>'+
     '<div class="timer" id="timer" role="timer" aria-live="off">'+formatTime(sessionSeconds())+'</div>'+
     '<div class="timer-actions"><button class="btn primary" data-a="timer-start"'+(timerStartedAt?' disabled':'')+'>Start</button><button class="btn" data-a="timer-pause"'+(timerStartedAt?'':' disabled')+'>Pause</button><button class="btn danger" data-a="timer-stop">Stop/Save</button></div>'+
+    '<div class="manual-time"><label>Hours<input class="field" id="manualHours" type="number" min="0" step="1" inputmode="numeric"></label><label>Minutes<input class="field" id="manualMinutes" type="number" min="0" max="59" step="1" inputmode="numeric"></label><label>Seconds<input class="field" id="manualSeconds" type="number" min="0" max="59" step="1" inputmode="numeric"></label><button class="btn" data-a="timer-manual">Add time</button></div>'+
     '<div class="timer-meta"><span>Total Deep Work Hours Today</span><span>Saved in daily records</span></div></section>'+
 
   '<section class="card gridcard"><div class="gridhead"><h2>'+(ui.view==='month'?'Monthly':'Weekly')+' tracker</h2><button class="btn primary" data-a="add">Add habit</button></div>'+
@@ -504,6 +522,7 @@ document.addEventListener('click',e=>{
   else if(a==='timer-start')startTimer();
   else if(a==='timer-pause')pauseTimer();
   else if(a==='timer-stop')stopTimer();
+  else if(a==='timer-manual')addManualTime();
   else if(a==='add')openDlg(null);
   else if(a==='edit')openDlg(b.dataset.id);
   else if(a==='theme'){state.theme=({auto:'light',light:'dark',dark:'auto'})[state.theme];save();render();}
