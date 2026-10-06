@@ -59,6 +59,12 @@ h2{font-size:19px}
 .ring-bg{stroke:var(--cell0)}
 .ring-fg{stroke:var(--accent);transition:stroke-dasharray .35s ease}
 .today p{margin:2px 0 0;color:var(--muted)}
+.deepwork{display:flex;flex-direction:column;gap:14px}
+.timer{font:700 clamp(32px,7vw,48px)/1 var(--display);letter-spacing:.04em;font-variant-numeric:tabular-nums}
+.timer-meta{display:flex;justify-content:space-between;gap:12px;color:var(--muted);font-size:13px}
+.timer-actions{display:flex;gap:8px;flex-wrap:wrap}
+.timer-actions .btn{flex:1;min-width:92px}
+.timer-total{font:700 28px/1.1 var(--display);font-variant-numeric:tabular-nums}
 .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
 .chip{display:inline-flex;align-items:center;gap:8px;border:1.5px solid var(--line);background:var(--surface);border-radius:999px;padding:8px 14px 8px 10px;font-weight:500}
 .chip i{width:16px;height:16px;border-radius:50%;border:1.5px solid var(--c);display:grid;place-items:center}
@@ -175,10 +181,10 @@ const uid=()=>'h'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
 function seed(){
   const hs=[['Drink 8 glasses of water',7],['Walk 20 minutes',5],['Read 30 minutes',5],['Sleep before 11 pm',6]]
     .map((x,i)=>({id:uid(),name:x[0],target:x[1],color:COLORS[i]}));
-  return {habits:hs,done:{},notes:{},weekStart:6,theme:'auto'};
+  return {habits:hs,done:{},notes:{},daily:[],weekStart:6,theme:'auto'};
 }
 function load(){
-  try{const s=localStorage.getItem(KEY);if(s){const o=JSON.parse(s);if(o&&o.habits)return Object.assign({done:{},notes:{},weekStart:6,theme:'auto'},o);}}catch(e){}
+  try{const s=localStorage.getItem(KEY);if(s){const o=JSON.parse(s);if(o&&o.habits)return Object.assign({done:{},notes:{},daily:[],weekStart:6,theme:'auto'},o);}}catch(e){}
   return seed();
 }
 function persist(){try{localStorage.setItem(KEY,JSON.stringify(state));}catch(e){}}
@@ -187,6 +193,42 @@ function save(){state.updatedAt=Date.now();persist();schedulePush();}
 let state=load();
 let ui={view:'month',anchor:new Date()};
 let editing=null,pickedColor=COLORS[0];
+let activeSeconds=0,todayTotalSeconds=0,timerStartedAt=null,timerInterval=null;
+
+function dailyRecord(date=iso(new Date())){
+  state.daily=Array.isArray(state.daily)?state.daily:[];
+  let record=state.daily.find(x=>x&&x.date===date);
+  if(!record){record={date,deepWorkSeconds:0};state.daily.push(record);}
+  record.deepWorkSeconds=Number(record.deepWorkSeconds)||0;
+  return record;
+}
+function refreshTodayTotal(){todayTotalSeconds=dailyRecord().deepWorkSeconds;}
+function sessionSeconds(){return timerStartedAt?activeSeconds+Math.floor((Date.now()-timerStartedAt)/1000):activeSeconds;}
+function formatTime(seconds){seconds=Math.max(0,Math.floor(seconds));return pad(Math.floor(seconds/3600))+':'+pad(Math.floor(seconds%3600/60))+':'+pad(seconds%60);}
+function formatHours(seconds){return (Math.max(0,seconds)/3600).toFixed(2);}
+function renderTimer(){
+  const e=document.getElementById('timer'),total=document.getElementById('deepTotal'),start=document.querySelector('[data-a="timer-start"]'),pause=document.querySelector('[data-a="timer-pause"]');
+  if(e)e.textContent=formatTime(sessionSeconds());
+  if(total)total.textContent=formatHours(todayTotalSeconds+sessionSeconds());
+  if(start)start.disabled=!!timerStartedAt;
+  if(pause)pause.disabled=!timerStartedAt;
+}
+function startTimer(){
+  if(timerStartedAt)return;
+  timerStartedAt=Date.now();
+  timerInterval=timerInterval||setInterval(renderTimer,1000);
+  renderTimer();
+}
+function pauseTimer(){
+  if(!timerStartedAt)return;
+  activeSeconds=sessionSeconds();timerStartedAt=null;renderTimer();
+}
+function commitTimer(){
+  const seconds=sessionSeconds();
+  if(seconds){const record=dailyRecord();record.deepWorkSeconds+=seconds;todayTotalSeconds=record.deepWorkSeconds;}
+  activeSeconds=0;timerStartedAt=null;save();renderTimer();
+}
+function stopTimer(){commitTimer();render();toast('Deep work session saved');}
 
 function periodDays(){
   const a=ui.anchor;
@@ -285,6 +327,11 @@ function render(){
       '<div class="fact"><b>'+topS+(topS===1?' day':' days')+'</b><span>'+(topS?'longest streak: '+esc(topName):'no streak yet')+'</span></div>'+
     '</div></div></section>'+
 
+  '<section class="card deepwork"><div class="timer-meta"><h2>Deep Work Timer</h2><span>Today: <b class="timer-total" id="deepTotal">'+formatHours(todayTotalSeconds+sessionSeconds())+'</b> hrs</span></div>'+
+    '<div class="timer" id="timer" role="timer" aria-live="off">'+formatTime(sessionSeconds())+'</div>'+
+    '<div class="timer-actions"><button class="btn primary" data-a="timer-start"'+(timerStartedAt?' disabled':'')+'>Start</button><button class="btn" data-a="timer-pause"'+(timerStartedAt?'':' disabled')+'>Pause</button><button class="btn danger" data-a="timer-stop">Stop/Save</button></div>'+
+    '<div class="timer-meta"><span>Total Deep Work Hours Today</span><span>Saved in daily records</span></div></section>'+
+
   '<section class="card gridcard"><div class="gridhead"><h2>'+(ui.view==='month'?'Monthly':'Weekly')+' tracker</h2><button class="btn primary" data-a="add">Add habit</button></div>'+
     (hs.length?'<div class="scroll"><table class="'+(ui.view==='week'?'week':'')+'"><thead>'+head+'</thead><tbody>'+rows+'</tbody></table></div>':
       '<div class="empty">Add your first habit to start checking off days.<br><button class="btn primary" data-a="add">Add habit</button></div>')+
@@ -379,7 +426,7 @@ async function syncNow(){
     const lu=state.updatedAt||0,ru=(remote&&remote.updatedAt)||0;
     drive.connected=true;saveDrive();
     if(remote&&Array.isArray(remote.habits)&&ru>lu){
-      state=Object.assign({done:{},notes:{},weekStart:6,theme:'auto'},remote);persist();render();
+      state=Object.assign({done:{},notes:{},daily:[],weekStart:6,theme:'auto'},remote);refreshTodayTotal();persist();render();
       setStatus('Loaded the latest data from Drive at '+clock()+'.');
     }else{
       await push();render();setStatus('Saved to Drive at '+clock()+'.');
@@ -454,6 +501,9 @@ document.addEventListener('click',e=>{
     else ui.anchor=addDays(ui.anchor,7*s);
     render();
   }else if(a==='now'){ui.anchor=new Date();render();}
+  else if(a==='timer-start')startTimer();
+  else if(a==='timer-pause')pauseTimer();
+  else if(a==='timer-stop')stopTimer();
   else if(a==='add')openDlg(null);
   else if(a==='edit')openDlg(b.dataset.id);
   else if(a==='theme'){state.theme=({auto:'light',light:'dark',dark:'auto'})[state.theme];save();render();}
@@ -493,11 +543,13 @@ document.getElementById('importFile').addEventListener('change',e=>{
       const o=JSON.parse(r.result);
       if(!o||!Array.isArray(o.habits))throw new Error('bad');
       if(!confirm('Replace your current data with this backup?'))return;
-      state=Object.assign({done:{},notes:{},weekStart:6,theme:'auto'},o);save();render();toast('Backup restored');
+      state=Object.assign({done:{},notes:{},daily:[],weekStart:6,theme:'auto'},o);refreshTodayTotal();save();render();toast('Backup restored');
     }catch(err){toast('That file is not a valid backup.');}
   };
   r.readAsText(f);e.target.value='';
 });
+refreshTodayTotal();
+window.addEventListener('beforeunload',()=>{commitTimer();if(drive.connected&&token)push().catch(()=>{});});
 render();
 })();
 </script>
