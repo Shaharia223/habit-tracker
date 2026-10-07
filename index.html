@@ -80,6 +80,21 @@ h2{font-size:19px}
 @media (max-width:520px){.facts{grid-template-columns:1fr 1fr}}
 .fact b{display:block;font:700 26px/1.1 var(--display)}
 .fact span{color:var(--muted);font-size:13px}
+.analysis{margin-bottom:16px}
+.analysis-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap}
+.analysis-head p{margin:0;color:var(--muted);font-size:13px}
+.analysis-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:14px}
+@media (max-width:900px){.analysis-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:520px){.analysis-grid{grid-template-columns:1fr}}
+.analysis-item{border:1px solid var(--line);border-radius:10px;padding:12px;background:var(--bg)}
+.analysis-item h3{font:700 16px var(--display);margin:0}
+.analysis-item p{margin:2px 0 10px;color:var(--muted);font-size:12px;min-height:18px}
+.analysis-values{display:flex;gap:14px;align-items:baseline;margin-bottom:10px}
+.analysis-values b{font:700 23px/1 var(--display);font-variant-numeric:tabular-nums}
+.analysis-values span{color:var(--muted);font-size:12px}
+.analysis-bar{height:7px;border-radius:99px;background:var(--cell0);overflow:hidden}
+.analysis-bar i{display:block;height:100%;border-radius:inherit;background:var(--accent);width:var(--progress)}
+.analysis-foot{display:flex;justify-content:space-between;gap:8px;margin-top:6px;color:var(--muted);font-size:12px}
 
 .gridcard{padding:0;overflow:hidden;margin-bottom:16px}
 .gridhead{display:flex;justify-content:space-between;align-items:center;padding:14px 18px;border-bottom:1px solid var(--line);gap:8px;flex-wrap:wrap}
@@ -280,6 +295,31 @@ function periodLabel(days){
   return f(days[0])+' – '+f(days[6]);
 }
 function pct(a,b){return b?Math.round(a/b*100):0;}
+function rangeStats(start,end){
+  const from=iso(start),to=iso(end),elapsed=[];
+  for(let d=new Date(start);iso(d)<=to;d=addDays(d,1))elapsed.push(iso(d));
+  let tasks=0;
+  state.habits.forEach(h=>elapsed.forEach(k=>{if(isDone(h.id,k))tasks++;}));
+  const hours=(state.daily||[]).reduce((sum,r)=>sum+(r&&r.date>=from&&r.date<=to?Number(r.deepWorkSeconds)||0:0),0)/3600;
+  return {tasks,hours,possible:state.habits.length*elapsed.length,days:elapsed.length};
+}
+function analysisCard(label,detail,start,end){
+  const s=rangeStats(start,end),completion=pct(s.tasks,s.possible);
+  return '<article class="analysis-item"><h3>'+label+'</h3><p>'+detail+'</p><div class="analysis-values"><span><b>'+s.tasks+'</b> tasks</span><span><b>'+s.hours.toFixed(1)+'</b> hrs</span></div><div class="analysis-bar" aria-label="'+completion+' percent of habit tasks completed"><i style="--progress:'+completion+'%"></i></div><div class="analysis-foot"><span>'+completion+'% task completion</span><span>'+s.days+' '+(s.days===1?'day':'days')+'</span></div></article>';
+}
+function renderAnalysis(today){
+  const weekOffset=(today.getDay()-state.weekStart+7)%7;
+  const weekStart=addDays(today,-weekOffset);
+  const monthStart=new Date(today.getFullYear(),today.getMonth(),1);
+  const yearStart=new Date(today.getFullYear(),0,1);
+  const weekDetail=weekStart.toLocaleDateString('en',{month:'short',day:'numeric'})+' – '+today.toLocaleDateString('en',{month:'short',day:'numeric'});
+  return '<section class="card analysis"><div class="analysis-head"><h2>Progress dashboard</h2><p>Habit tasks and deep-work time</p></div><div class="analysis-grid">'+
+    analysisCard('Today',today.toLocaleDateString('en',{weekday:'short',month:'short',day:'numeric'}),today,today)+
+    analysisCard('This week',weekDetail,weekStart,today)+
+    analysisCard('This month',today.toLocaleDateString('en',{month:'long',year:'numeric'}),monthStart,today)+
+    analysisCard('This year',String(today.getFullYear()),yearStart,today)+
+    '</div></section>';
+}
 
 function applyTheme(){
   const r=document.documentElement;
@@ -349,6 +389,8 @@ function render(){
     '<div class="timer-actions"><button class="btn primary" data-a="timer-start"'+(timerStartedAt?' disabled':'')+'>Start</button><button class="btn" data-a="timer-pause"'+(timerStartedAt?'':' disabled')+'>Pause</button><button class="btn danger" data-a="timer-stop">Stop/Save</button></div>'+
     '<div class="manual-time"><label>Hours<input class="field" id="manualHours" type="number" min="0" step="1" inputmode="numeric"></label><label>Minutes<input class="field" id="manualMinutes" type="number" min="0" max="59" step="1" inputmode="numeric"></label><label>Seconds<input class="field" id="manualSeconds" type="number" min="0" max="59" step="1" inputmode="numeric"></label><button class="btn" data-a="timer-manual">Add time</button></div>'+
     '<div class="timer-meta"><span>Total Deep Work Hours Today</span><span>Saved in daily records</span></div></section>'+
+
+    renderAnalysis(new Date())+
 
   '<section class="card gridcard"><div class="gridhead"><h2>'+(ui.view==='month'?'Monthly':'Weekly')+' tracker</h2><button class="btn primary" data-a="add">Add habit</button></div>'+
     (hs.length?'<div class="scroll"><table class="'+(ui.view==='week'?'week':'')+'"><thead>'+head+'</thead><tbody>'+rows+'</tbody></table></div>':
