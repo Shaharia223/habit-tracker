@@ -226,17 +226,31 @@ function sessionSeconds(){return timerStartedAt?activeSeconds+Math.floor((Date.n
 function formatTime(seconds){seconds=Math.max(0,Math.floor(seconds));return pad(Math.floor(seconds/3600))+':'+pad(Math.floor(seconds%3600/60))+':'+pad(seconds%60);}
 function formatHours(seconds){return (Math.max(0,seconds)/3600).toFixed(2);}
 function addManualTime(){
-  const hours=Number(document.getElementById('manualHours').value)||0;
-  const minutes=Number(document.getElementById('manualMinutes').value)||0;
-  const seconds=Number(document.getElementById('manualSeconds').value)||0;
-  if(hours<0||minutes<0||minutes>59||seconds<0||seconds>59){toast('Use 0–59 for minutes and seconds');return;}
-  const amount=Math.floor(hours*3600+minutes*60+seconds);
+  const amount=manualTimeSeconds();
+  if(amount===null)return;
   if(!amount){toast('Enter a time greater than zero');return;}
   if(timerStartedAt)pauseTimer();
   const record=dailyRecord();record.deepWorkSeconds+=amount;todayTotalSeconds=record.deepWorkSeconds;
   save();
   ['manualHours','manualMinutes','manualSeconds'].forEach(id=>{document.getElementById(id).value='';});
   renderTimer();toast('Manual deep work time added');
+}
+function manualTimeSeconds(){
+  const hours=Number(document.getElementById('manualHours').value)||0;
+  const minutes=Number(document.getElementById('manualMinutes').value)||0;
+  const seconds=Number(document.getElementById('manualSeconds').value)||0;
+  if(hours<0||minutes<0||minutes>59||seconds<0||seconds>59){toast('Use 0–59 for minutes and seconds');return null;}
+  return Math.floor(hours*3600+minutes*60+seconds);
+}
+function setManualTime(){
+  if(timerStartedAt||activeSeconds){toast('Save or clear the active timer before editing today’s total');return;}
+  const amount=manualTimeSeconds();
+  const hasValue=['manualHours','manualMinutes','manualSeconds'].some(id=>document.getElementById(id).value.trim()!=='');
+  if(amount===null||!hasValue){if(amount!==null)toast('Enter the total time for today');return;}
+  const record=dailyRecord();record.deepWorkSeconds=amount;todayTotalSeconds=amount;
+  save();
+  ['manualHours','manualMinutes','manualSeconds'].forEach(id=>{document.getElementById(id).value='';});
+  renderTimer();toast('Today’s deep work total updated');
 }
 function renderTimer(){
   const e=document.getElementById('timer'),total=document.getElementById('deepTotal'),start=document.querySelector('[data-a="timer-start"]'),pause=document.querySelector('[data-a="timer-pause"]');
@@ -387,7 +401,8 @@ function render(){
   '<section class="card deepwork"><div class="timer-meta"><h2>Deep Work Timer</h2><span>Today: <b class="timer-total" id="deepTotal">'+formatHours(todayTotalSeconds+sessionSeconds())+'</b> hrs</span></div>'+
     '<div class="timer" id="timer" role="timer" aria-live="off">'+formatTime(sessionSeconds())+'</div>'+
     '<div class="timer-actions"><button class="btn primary" data-a="timer-start"'+(timerStartedAt?' disabled':'')+'>Start</button><button class="btn" data-a="timer-pause"'+(timerStartedAt?'':' disabled')+'>Pause</button><button class="btn danger" data-a="timer-stop">Stop/Save</button></div>'+
-    '<div class="manual-time"><label>Hours<input class="field" id="manualHours" type="number" min="0" step="1" inputmode="numeric"></label><label>Minutes<input class="field" id="manualMinutes" type="number" min="0" max="59" step="1" inputmode="numeric"></label><label>Seconds<input class="field" id="manualSeconds" type="number" min="0" max="59" step="1" inputmode="numeric"></label><button class="btn" data-a="timer-manual">Add time</button></div>'+
+    '<div class="manual-time"><label>Hours<input class="field" id="manualHours" type="number" min="0" step="1" inputmode="numeric"></label><label>Minutes<input class="field" id="manualMinutes" type="number" min="0" max="59" step="1" inputmode="numeric"></label><label>Seconds<input class="field" id="manualSeconds" type="number" min="0" max="59" step="1" inputmode="numeric"></label><button class="btn" data-a="timer-manual">Add time</button><button class="btn" data-a="timer-set-manual">Set total</button></div>'+
+    '<div class="timer-meta"><span>Use Add time for extra hours; Set total edits today’s saved total.</span><span>Saved in daily records</span></div>'+
     '<div class="timer-meta"><span>Total Deep Work Hours Today</span><span>Saved in daily records</span></div></section>'+
 
     renderAnalysis(new Date())+
@@ -565,6 +580,7 @@ document.addEventListener('click',e=>{
   else if(a==='timer-pause')pauseTimer();
   else if(a==='timer-stop')stopTimer();
   else if(a==='timer-manual')addManualTime();
+  else if(a==='timer-set-manual')setManualTime();
   else if(a==='add')openDlg(null);
   else if(a==='edit')openDlg(b.dataset.id);
   else if(a==='theme'){state.theme=({auto:'light',light:'dark',dark:'auto'})[state.theme];save();render();}
